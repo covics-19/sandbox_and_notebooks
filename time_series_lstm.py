@@ -5,8 +5,7 @@ get the more uptodate data
 
 
 
-import sys
-
+import argparse
 import numpy
 import pandas
 from matplotlib import pyplot
@@ -143,21 +142,34 @@ def prepare_data_for_the_model (sequences,
            numpy . expand_dims (numpy . asarray (model_expected_outputs), axis = -1))
 
 
-def process_args (argv) :
-  global nb_epochs, random_seed
-  # (TODO: use one of those modules that process the command line
-  argc = len (argv)
-  argi = 1
-  while (argi < argc) :
-    if (argv [argi] == '--nb_epochs') :
-      argi += 1
-      nb_epochs = int (argv [argi])
-    elif (argv [argi] == '--random_seed') :
-      argi += 1
-      random_seed = int (argv [argi])
-    else :
-      raise Exception (f'unknown option:{argv[argi]}')
-    argi += 1
+def process_args () :
+  global nb_epochs, random_seed, nb_hidden_features
+  global predictions_len, batch_size, past_len
+  global dropout_rate, test_data_size, max_ratio_value
+  parser = argparse . ArgumentParser ()
+  parser . add_argument ('--nb_epochs', type = int, default = nb_epochs)
+  parser . add_argument ('--random_seed', type = int, default = random_seed)
+  parser . add_argument ('--nb_hidden_features', type = int, default = nb_hidden_features)
+  parser . add_argument ('--predictions_len', type = int, default = predictions_len)
+  parser . add_argument ('--batch_size', type = int, default = batch_size)
+  parser . add_argument ('--past_len', type = int, default = past_len)
+  parser . add_argument ('--dropout_rate', type = float, default = dropout_rate)
+  parser . add_argument ('--test_data_size', type = float, default = test_data_size)
+  parser . add_argument ('--max_ratio_value', type = float, default = max_ratio_value)
+  #parser . add_argument ('--loss', type = int, default = )
+  #parser . add_argument ('--optimizer', type = int, default = )
+  args = parser . parse_args ()
+  nb_epochs = args . nb_epochs
+  random_seed = args . random_seed
+  nb_hidden_features = args . nb_hidden_features
+  predictions_len = args . predictions_len
+  batch_size = args . batch_size
+  past_len = args . past_len
+  dropout_rate = args . dropout_rate
+  test_data_size = args . test_data_size
+  max_ratio_value = args . max_ratio_value
+  # = args . 
+  # = args . 
 
 def convert_model_output_to_predictions (model_output, initial_value, output_index = 0) :
   # TODO: test
@@ -172,12 +184,12 @@ def convert_model_output_to_predictions (model_output, initial_value, output_ind
 def plot_comparison_graphs (area_name) :
   area_data = cases_data [cases_data ['area'] == area_name]
   area_cases = extract_unmodified_sequences_from_first_case (area_data) [0]
-  uk_variations = compute_sequence_variations ([ area_cases ],
+  area_variations = compute_sequence_variations ([ area_cases ],
                                                max_ratio_value = max_ratio_value) [0]
-  data_past = uk_variations [ : - predictions_len ]
+  data_past = area_variations [ : - predictions_len ]
   model_output = lstm_model . predict (numpy . expand_dims (numpy . expand_dims (data_past [ - past_len : ], axis = -1), axis = 0))
   predictions = convert_model_output_to_predictions (model_output, area_cases [ - predictions_len - 1 ])
-  nb_days = uk_variations . shape [0]
+  nb_days = area_variations . shape [0]
   days = numpy . arange (nb_days)
   pyplot . plot (days, area_cases [ - nb_days : ])
   pyplot . plot (days [ - predictions_len : ], predictions)
@@ -186,7 +198,7 @@ def plot_comparison_graphs (area_name) :
 
 
 if __name__ == '__main__' :
-  process_args (sys . argv)
+  process_args ()
   cases_data = load_the_data ('time_series_covid19_confirmed_global.csv', do_correct_known_typos = True)
   sequences = extract_unmodified_sequences_from_first_case (cases_data)
   variations = compute_sequence_variations (sequences, max_ratio_value = max_ratio_value)
@@ -226,6 +238,6 @@ if __name__ == '__main__' :
   plot_comparison_graphs ('France - (main)')
   
   
-## data_future = lstm_model . predict (data_past)
+
 
 
