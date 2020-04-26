@@ -16,11 +16,11 @@ from tensorflow . keras import optimizers as tfk_optimizers
 
 
 batch_size = 64
-nb_epochs = 1
+nb_epochs = 10
 past_len = 33
 nb_hidden_features = 2
 predictions_len = 21
-optimizer = tfk_optimizers . Adam (lr = 0.0001)
+optimizer = tfk_optimizers . Adam (lr = 0.001)
 loss_function = 'mae'
 dropout_rate = 0.05
 
@@ -77,7 +77,6 @@ def load_the_data (data_file_name, do_correct_known_typos = False) :
   return cases_data
 
 def extract_unmodified_sequences_from_first_case (cases_data) :
-  # TODO: test this function
   sequence_data = cases_data . iloc [ : , : -1 ]
   nb_sequences = len (sequence_data)
   sequences = nb_sequences * [ None, ]
@@ -90,23 +89,27 @@ def extract_unmodified_sequences_from_first_case (cases_data) :
 
 def compute_sequence_variations (sequences,
                                  max_ratio_value = 2.9) :
-  # TODO: test this function
+  min_ratio_value = 1. / max_ratio_value
   nb_sequences = len (sequences)
   variations = nb_sequences * [ None, ]
-  for sequence_index, sequence in enumerate (sequences) :
+  sequence_index = 0
+  for sequence in sequences :
     ratios = sequence [ 1 : ] / sequence [ : -1 ]
+    if (ratios . shape [0] == 0) :
+      continue
     # this includes numpy.inf
     ratios [ratios > max_ratio_value] = max_ratio_value
-    ratios [ratios < - max_ratio_value] = - max_ratio_value
+    ratios [ratios < min_ratio_value] = min_ratio_value
     ratios [numpy . isnan (ratios)] = 1.
     variations [sequence_index] = numpy . log (ratios)
-  return variations
+    sequence_index += 1
+  return variations [ : sequence_index ]
 
 
 def prepare_data_for_the_model (sequences,
                                 past_len,
                                 predictions_len,
-                                do_remove_zero_data = True) :
+                                do_remove_zero_data = False) :
   # TODO: test this function
   model_inputs = []
   model_expected_outputs = []
@@ -135,40 +138,35 @@ def prepare_data_for_the_model (sequences,
   return ( numpy . expand_dims (numpy . asarray (model_inputs), axis = -1),
            numpy . expand_dims (numpy . asarray (model_expected_outputs), axis = -1))
 
-cases_data = load_the_data ('time_series_covid19_confirmed_global.csv', do_correct_known_typos = True)
-sequences = extract_unmodified_sequences_from_first_case (cases_data)
-variations = compute_sequence_variations (sequences, max_ratio_value = max_ratio_value)
 
-data_past, data_future = prepare_data_for_the_model (variations, past_len, predictions_len, do_remove_zero_data = False)
+if __name__ == '__main__' :
+  cases_data = load_the_data ('time_series_covid19_confirmed_global.csv', do_correct_known_typos = True)
+  sequences = extract_unmodified_sequences_from_first_case (cases_data)
+  variations = compute_sequence_variations (sequences, max_ratio_value = max_ratio_value)
+  data_past, data_future = prepare_data_for_the_model (variations, past_len, predictions_len, do_remove_zero_data = False)
+  ( train_data_past,
+    test_data_past,
+    train_data_future,
+    test_data_future ) = skl_train_test_split (data_past,
+                                               data_future,
+                                               test_size = test_data_size,
+                                               shuffle = True,
+                                               random_state = random_seed)
 
-( train_data_past,
-  test_data_past,
-  train_data_future,
-  test_data_future ) = skl_train_test_split (data_past,
-                                             data_future,
-                                             test_size = test_data_size,
-                                             shuffle = True,
-                                             random_state = random_seed)
-
-
-lstm_model = create_and_prepare_model (input_len = past_len,
-                                       nb_hidden_features = nb_hidden_features,
-                                       predictions_len = predictions_len,
-                                       optimizer = optimizer,
-                                       loss_function = loss_function,
-                                       dropout_rate = dropout_rate)
-
-
-train_history = lstm_model . fit (train_data_past,
-                                  train_data_future,
-                                  batch_size = batch_size,
-                                  epochs = nb_epochs,
-                                  validation_data = (test_data_past, test_data_future))
-
-print (f'Train history : {train_history.history}')
-
-eval_results = lstm_model . evaluate (test_data_past, test_data_future, batch_size = batch_size)
-print (f'Evaluation results : {eval_results}')
+  lstm_model = create_and_prepare_model (input_len = past_len,
+                                         nb_hidden_features = nb_hidden_features,
+                                         predictions_len = predictions_len,
+                                         optimizer = optimizer,
+                                         loss_function = loss_function,
+                                         dropout_rate = dropout_rate)
+  train_history = lstm_model . fit (train_data_past,
+                                    train_data_future,
+                                    batch_size = batch_size,
+                                    epochs = nb_epochs,
+                                    validation_data = (test_data_past, test_data_future))
+  print (f'Train history : {train_history.history}')
+  eval_results = lstm_model . evaluate (test_data_past, test_data_future, batch_size = batch_size)
+  print (f'Evaluation results : {eval_results}')
 
 
 ## data_future = lstm_model . predict (data_past)
