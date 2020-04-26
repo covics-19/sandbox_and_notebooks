@@ -1,9 +1,6 @@
-"""
-TODO:
-- test
-- x valid
-- ensemble?
-"""
+
+
+import sys
 
 import numpy
 import pandas
@@ -16,9 +13,9 @@ from tensorflow . keras import optimizers as tfk_optimizers
 
 
 batch_size = 64
-nb_epochs = 10
+nb_epochs = 229
 past_len = 33
-nb_hidden_features = 2
+nb_hidden_features = 11
 predictions_len = 21
 optimizer = tfk_optimizers . Adam (lr = 0.001)
 loss_function = 'mae'
@@ -139,7 +136,26 @@ def prepare_data_for_the_model (sequences,
            numpy . expand_dims (numpy . asarray (model_expected_outputs), axis = -1))
 
 
+def process_args (argv) :
+  global nb_epochs, random_seed
+  # (TODO: use one of those modules that process the command line
+  argc = len (argv)
+  argi = 1
+  while (argi < argc) :
+    if (argv [argi] == '--nb_epochs') :
+      argi += 1
+      nb_epochs = int (argv [argi])
+    elif (argv [argi] == '--random_seed') :
+      argi += 1
+      random_seed = int (argv [argi])
+    else :
+      raise Exception (f'unknown option:{argv[argi]}')
+    argi += 1
+    
+    
+
 if __name__ == '__main__' :
+  process_args (sys . argv)
   cases_data = load_the_data ('time_series_covid19_confirmed_global.csv', do_correct_known_typos = True)
   sequences = extract_unmodified_sequences_from_first_case (cases_data)
   variations = compute_sequence_variations (sequences, max_ratio_value = max_ratio_value)
@@ -152,7 +168,6 @@ if __name__ == '__main__' :
                                                test_size = test_data_size,
                                                shuffle = True,
                                                random_state = random_seed)
-
   lstm_model = create_and_prepare_model (input_len = past_len,
                                          nb_hidden_features = nb_hidden_features,
                                          predictions_len = predictions_len,
@@ -164,9 +179,17 @@ if __name__ == '__main__' :
                                     batch_size = batch_size,
                                     epochs = nb_epochs,
                                     validation_data = (test_data_past, test_data_future))
-  print (f'Train history : {train_history.history}')
-  eval_results = lstm_model . evaluate (test_data_past, test_data_future, batch_size = batch_size)
-  print (f'Evaluation results : {eval_results}')
+  train_history = train_history . history
+  #print (f'Train history : {train_history}')
+  min_loss_epoch = numpy . argmin (train_history ['val_loss'])
+  print (f'Min loss at {min_loss_epoch} : ' + str (train_history ['val_loss'] [min_loss_epoch]))
+  pyplot . plot (train_history ['loss'])
+  pyplot . plot (train_history ['val_loss'])
+  pyplot . legend (['Train loss', 'Validation loss'])
+  pyplot . title ('Loss')
+  pyplot . show ()
+  #eval_results = lstm_model . evaluate (test_data_past, test_data_future, batch_size = batch_size)
+  #print (f'Evaluation results : {eval_results}')
 
 
 ## data_future = lstm_model . predict (data_past)
