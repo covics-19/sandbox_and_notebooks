@@ -1,3 +1,8 @@
+"""
+TODO:
+get the more uptodate data
+"""
+
 
 
 import sys
@@ -77,10 +82,12 @@ def extract_unmodified_sequences_from_first_case (cases_data) :
   sequence_data = cases_data . iloc [ : , : -1 ]
   nb_sequences = len (sequence_data)
   sequences = nb_sequences * [ None, ]
+  sequence_index = 0
   for row_index, row in sequence_data . iterrows () :
-    sequences [row_index] = row . values
-    first_nonzero = (sequences [row_index] != 0) . argmax ()
-    sequences [row_index] = sequences [row_index] [ first_nonzero : ] . astype (float)
+    sequences [sequence_index] = row . values
+    first_nonzero = (sequences [sequence_index] != 0) . argmax ()
+    sequences [sequence_index] = sequences [sequence_index] [ first_nonzero : ] . astype (float)
+    sequence_index += 1
   return sequences
 
 
@@ -151,8 +158,32 @@ def process_args (argv) :
     else :
       raise Exception (f'unknown option:{argv[argi]}')
     argi += 1
-    
-    
+
+def convert_model_output_to_predictions (model_output, initial_value, output_index = 0) :
+  # TODO: test
+  variation_rates = numpy . exp (model_output [output_index, : ])
+  prediction_len = variation_rates . shape [0]
+  predictions = numpy . zeros (prediction_len)
+  predictions [0] = initial_value * variation_rates [0]
+  for t in range (1, prediction_len) :
+    predictions [t] = predictions [t - 1] * variation_rates [t]
+  return predictions
+
+def plot_comparison_graphs (area_name) :
+  area_data = cases_data [cases_data ['area'] == area_name]
+  area_cases = extract_unmodified_sequences_from_first_case (area_data) [0]
+  uk_variations = compute_sequence_variations ([ area_cases ],
+                                               max_ratio_value = max_ratio_value) [0]
+  data_past = uk_variations [ : - predictions_len ]
+  model_output = lstm_model . predict (numpy . expand_dims (numpy . expand_dims (data_past [ - past_len : ], axis = -1), axis = 0))
+  predictions = convert_model_output_to_predictions (model_output, area_cases [ - predictions_len - 1 ])
+  nb_days = uk_variations . shape [0]
+  days = numpy . arange (nb_days)
+  pyplot . plot (days, area_cases [ - nb_days : ])
+  pyplot . plot (days [ - predictions_len : ], predictions)
+  pyplot . legend ([f'{area_name} data', 'Predictions'])
+  pyplot . show ()
+
 
 if __name__ == '__main__' :
   process_args (sys . argv)
@@ -190,8 +221,11 @@ if __name__ == '__main__' :
   pyplot . show ()
   #eval_results = lstm_model . evaluate (test_data_past, test_data_future, batch_size = batch_size)
   #print (f'Evaluation results : {eval_results}')
-
-
+  plot_comparison_graphs ('United Kingdom - (main)')
+  plot_comparison_graphs ('Italy - (main)')
+  plot_comparison_graphs ('France - (main)')
+  
+  
 ## data_future = lstm_model . predict (data_past)
 
 
