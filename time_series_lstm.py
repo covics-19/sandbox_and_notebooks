@@ -14,6 +14,7 @@ from sklearn . model_selection import train_test_split as skl_train_test_split
 from tensorflow . keras import layers as tfk_layers
 from tensorflow . keras import models as tfk_models
 from tensorflow . keras import optimizers as tfk_optimizers
+from tensorflow . keras import regularizers as tfk_regularizers
 
 
 batch_size = 64
@@ -24,6 +25,8 @@ predictions_len = 21
 optimizer = tfk_optimizers . Adam (lr = 0.001)
 loss_function = 'mae'
 dropout_rate = 0.05
+regularizer_amplitude = 0.002
+regularizer_type = 'L1'
 
 test_data_size = 0.2
 random_seed = 10000000000006660000000000001 % 666
@@ -56,12 +59,13 @@ def create_and_prepare_model (
                   predictions_len = 21,
                   optimizer = 'adam',
                   loss_function = 'mae',
-                  dropout_rate = 0.05) :
+                  dropout_rate = 0.05,
+                  regularizer = None) :
   lstm_model = tfk_models . Sequential (
                  [ tfk_layers . LSTM (nb_hidden_features,
                                       input_shape = (input_len, 1),
                                       dropout = dropout_rate),
-                   tfk_layers . Dense (predictions_len) ])
+                   tfk_layers . Dense (predictions_len, kernel_regularizer = regularizer) ])
   lstm_model . compile (optimizer = optimizer, loss = loss_function)
   return lstm_model
 
@@ -211,12 +215,18 @@ if __name__ == '__main__' :
                                                test_size = test_data_size,
                                                shuffle = True,
                                                random_state = random_seed)
+  regularizer = None
+  if (regularizer_type == 'L1') :
+    regularizer = tfk_regularizers . l1 (l = regularizer_amplitude)
+  elif (regularizer_type == 'L2') :
+    regularizer = tfk_regularizers . l2 (l = regularizer_amplitude)
   lstm_model = create_and_prepare_model (input_len = past_len,
                                          nb_hidden_features = nb_hidden_features,
                                          predictions_len = predictions_len,
                                          optimizer = optimizer,
                                          loss_function = loss_function,
-                                         dropout_rate = dropout_rate)
+                                         dropout_rate = dropout_rate,
+                                         regularizer = regularizer)
   train_history = lstm_model . fit (train_data_past,
                                     train_data_future,
                                     batch_size = batch_size,
