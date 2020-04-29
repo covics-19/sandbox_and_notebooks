@@ -1,6 +1,7 @@
 """
 TODO:
-get the more uptodate data
+- get the more uptodate data
+- check correlations
 """
 
 
@@ -206,15 +207,12 @@ if __name__ == '__main__' :
   cases_data = load_the_data ('time_series_covid19_confirmed_global.csv', do_correct_known_typos = True)
   sequences = extract_unmodified_sequences_from_first_case (cases_data)
   variations = compute_sequence_variations (sequences, max_ratio_value = max_ratio_value)
-  data_past, data_future = prepare_data_for_the_model (variations, past_len, predictions_len, do_remove_zero_data = False)
-  ( train_data_past,
-    test_data_past,
-    train_data_future,
-    test_data_future ) = skl_train_test_split (data_past,
-                                               data_future,
-                                               test_size = test_data_size,
-                                               shuffle = True,
-                                               random_state = random_seed)
+  train_sequences, test_sequences = skl_train_test_split (variations,
+                                                          test_size = test_data_size,
+                                                          shuffle = True,
+                                                          random_state = random_seed)
+  train_data_past, train_data_future = prepare_data_for_the_model (train_sequences, past_len, predictions_len, do_remove_zero_data = False)
+  test_data_past, test_data_future = prepare_data_for_the_model (test_sequences, past_len, predictions_len, do_remove_zero_data = False)
   regularizer = None
   if (regularizer_type == 'L1') :
     regularizer = tfk_regularizers . l1 (l = regularizer_amplitude)
