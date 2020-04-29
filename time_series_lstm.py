@@ -1,7 +1,10 @@
 """
 TODO:
-- get the more uptodate data
 - check correlations
+- TODO: check consistence past_len vs len of the input to the lstm
+- TODO: investigate predictiobns over a fictional logistic past  
+DONE:
+- get the more uptodate data
 """
 
 
@@ -68,7 +71,7 @@ def load_the_data (data_file_name, do_correct_known_typos = False) :
   if (data_file_name == 'time_series_covid19_confirmed_global.csv') :
     return load_the_data_old_ver (data_file_name, do_correct_known_typos)
   cases_data = pandas . read_csv (data_file_name)
-  cases_data . drop ([ 'Unnamed: 0', 'Country Code' ], axis = 'columns', inplace = True)
+  cases_data . drop ([ 'Unnamed: 0', 'CountryCode' ], axis = 'columns', inplace = True)
   return cases_data
 
 def extract_unmodified_sequences_from_first_case_old_ver (cases_data) :
@@ -83,8 +86,11 @@ def extract_unmodified_sequences_from_first_case_old_ver (cases_data) :
     sequence_index += 1
   return sequences
 
-def extract_unmodified_sequences_from_first_case (cases_data) :
-  country_list = list (cases_data . Country . unique ())
+def extract_unmodified_sequences_from_first_case (cases_data, country_name = None) :
+  if (country_name == None) :
+    country_list = list (cases_data . Country . unique ())
+  else :
+    country_list = [ country_name, ]
   nb_sequences = len (country_list)
   sequences = nb_sequences * [ None, ]
   for country_index, country in enumerate (country_list) :
@@ -197,7 +203,7 @@ def convert_model_output_to_predictions (model_output, initial_value, output_ind
     predictions [t] = predictions [t - 1] * variation_rates [t]
   return predictions
 
-def plot_comparison_graphs (area_name) :
+def plot_comparison_graphs_old_ver (cases_data, area_name) :
   area_data = cases_data [cases_data ['area'] == area_name]
   area_cases = extract_unmodified_sequences_from_first_case (area_data) [0]
   area_variations = compute_sequence_variations ([ area_cases ],
@@ -213,9 +219,38 @@ def plot_comparison_graphs (area_name) :
   pyplot . show ()
 
 
+def plot_comparison_graphs (cases_data, area_name) :
+  area_cases = extract_unmodified_sequences_from_first_case (cases_data, country_name = area_name) [0]
+  area_variations = compute_sequence_variations ([ area_cases ],
+                                                   max_ratio_value = max_ratio_value) [0]
+  data_past = area_variations [ : - predictions_len ]
+  model_output = lstm_model . predict (numpy . expand_dims (numpy . expand_dims (data_past [ - past_len : ], axis = -1), axis = 0))
+  predictions = convert_model_output_to_predictions (model_output, area_cases [ - predictions_len - 1 ])
+  nb_days = area_variations . shape [0]
+  days = numpy . arange (nb_days + 1)
+  pyplot . plot (days, area_cases [ - nb_days - 1 : ])
+  pyplot . plot (days [ - predictions_len : ], predictions)
+  pyplot . legend ([f'{area_name} data', 'Predictions'])
+  pyplot . show ()
+
+
+
+def show_predictions_over_fiction (past_len, predictions_len, fiction_name, fiction_past) :
+  data_past = compute_sequence_variations ([ fiction_past ],
+                                             max_ratio_value = max_ratio_value) [0]
+  model_output = lstm_model . predict (numpy . expand_dims (numpy . expand_dims (data_past, axis = -1), axis = 0))
+  predictions = convert_model_output_to_predictions (model_output, fiction_past [ -1 ])
+  nb_days = past_len + 1 + predictions_len
+  days = numpy . arange (nb_days)
+  pyplot . plot (days [ : past_len + 1 ], fiction_past)
+  pyplot . plot (days [ past_len + 1 : ], predictions)
+  pyplot . legend ([f'{fiction_name} data', 'Predictions'])
+  pyplot . show ()
+
+
 if __name__ == '__main__' :
   process_args ()
-  cases_data = load_the_data ('time_series_covid19_confirmed_global.csv', do_correct_known_typos = True)
+  cases_data = load_the_data ('cases-data-2020-04-28.csv', do_correct_known_typos = True)
   sequences = extract_unmodified_sequences_from_first_case (cases_data)
   variations = compute_sequence_variations (sequences, max_ratio_value = max_ratio_value)
   train_sequences, test_sequences = skl_train_test_split (variations,
@@ -252,11 +287,25 @@ if __name__ == '__main__' :
   pyplot . show ()
   #eval_results = lstm_model . evaluate (test_data_past, test_data_future, batch_size = batch_size)
   #print (f'Evaluation results : {eval_results}')
-  plot_comparison_graphs ('United Kingdom - (main)')
-  plot_comparison_graphs ('Italy - (main)')
-  plot_comparison_graphs ('France - (main)')
-  
-  
+  #comparison_graph_areas_old_ver = [ 'United Kingdom - (main)', 'France - (main)', 'Italy - (main)', ]
+  comparison_graph_areas = [ 'United Kingdom', 'France', 'Italy', 'Germany', 'Spain', 'Iran, Islamic Republic of', 'Switzerland', 'Sweden' ]
+  #comparison_graph_areas = []
+  for area_name in comparison_graph_areas :
+    plot_comparison_graphs (cases_data, area_name)
+  # Extra investigation test cases:
+  fiction_data = numpy . ones (past_len + 1)
+  show_predictions_over_fiction (past_len, predictions_len, 'no variation', fiction_data)
+  fiction_data = numpy . ones (past_len + 1)
+  fiction_data [-1] = 0.5
+  show_predictions_over_fiction (past_len, predictions_len, 'last is half', fiction_data)
+  fiction_data = numpy . ones (past_len + 1)
+  fiction_data [-1] = 0.25
+  fiction_data [-2] = 0.5
+  show_predictions_over_fiction (past_len, predictions_len, 'last is half half (prev half)', fiction_data)
+  fiction_data = numpy . arange (past_len + 1, dtype = float)
+  show_predictions_over_fiction (past_len, predictions_len, 'constant growth', fiction_data)
+  fiction_data = numpy . exp (0.1 * numpy . arange (past_len + 1, dtype = float))
+  show_predictions_over_fiction (past_len, predictions_len, 'exp growth', fiction_data)
 
 
 
