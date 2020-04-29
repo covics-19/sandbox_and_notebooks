@@ -68,7 +68,7 @@ def load_the_data_old_ver (data_file_name, do_correct_known_typos = False) :
 
 
 def load_the_data (data_file_name, do_correct_known_typos = False) :
-  if (data_file_name == 'time_series_covid19_confirmed_global.csv') :
+  if (data_file_name == '../time_series_covid19_confirmed_global.csv') :
     return load_the_data_old_ver (data_file_name, do_correct_known_typos)
   cases_data = pandas . read_csv (data_file_name)
   cases_data . drop ([ 'Unnamed: 0', 'CountryCode' ], axis = 'columns', inplace = True)
@@ -250,7 +250,7 @@ def show_predictions_over_fiction (past_len, predictions_len, fiction_name, fict
 
 if __name__ == '__main__' :
   process_args ()
-  cases_data = load_the_data ('cases-data-2020-04-28.csv', do_correct_known_typos = True)
+  cases_data = load_the_data ('../cases-data-2020-04-28.csv', do_correct_known_typos = True)
   sequences = extract_unmodified_sequences_from_first_case (cases_data)
   variations = compute_sequence_variations (sequences, max_ratio_value = max_ratio_value)
   train_sequences, test_sequences = skl_train_test_split (variations,
