@@ -34,25 +34,6 @@ random_seed = 10000000000006660000000000001 % 666
 
 max_ratio_value = 3.1
 
-"""
-bug: in tensorflow.keras :(
-https://github.com/tensorflow/tensorflow/issues/27120
-(https://github.com/tensorflow/tensorflow/issues/34983)
-def create_and_prepare_model (
-                  input_len = 33,
-                  nb_hidden_features = 9,
-                  predictions_len = 21,
-                  optimizer = 'adam',
-                  loss_function = 'mae',
-                  dropout_rate = 0.05) :
-  lstm_model = tfk_models . Sequential (
-                 [ tfk_layers . LSTM (nb_hidden_features,
-                                      input_shape = (input_len, 1),
-                                      dropout = dropout_rate),
-                   tfk_layers . Dense (predictions_len, activation = 'linear') ])
-  lstm_model . compile (optimizer = optimizer, loss = loss_function)
-  return lstm_model
-"""
 
 def create_and_prepare_model (
                   input_len = 33,
@@ -72,17 +53,25 @@ def create_and_prepare_model (
 
 
 
-
-def load_the_data (data_file_name, do_correct_known_typos = False) :
+def load_the_data_old_ver (data_file_name, do_correct_known_typos = False) :
   cases_data = pandas . read_csv (data_file_name)
   cases_data ['Province/State'] = cases_data [['Province/State']] . fillna ('(main)', inplace = False)
   if (do_correct_known_typos) :
     cases_data . loc [207, 'Country/Region'] = 'Taiwan'
   cases_data ['area'] = cases_data ['Country/Region'] . astype (str) + ' - ' + cases_data ['Province/State'] . astype (str) 
   cases_data . drop ([ 'Province/State', 'Country/Region', 'Lat', 'Long' ], axis = 'columns', inplace = True)
+  raise Exception ('this data file is obsolete, the script wont process the data correctly')
   return cases_data
 
-def extract_unmodified_sequences_from_first_case (cases_data) :
+
+def load_the_data (data_file_name, do_correct_known_typos = False) :
+  if (data_file_name == 'time_series_covid19_confirmed_global.csv') :
+    return load_the_data_old_ver (data_file_name, do_correct_known_typos)
+  cases_data = pandas . read_csv (data_file_name)
+  cases_data . drop ([ 'Unnamed: 0', 'Country Code' ], axis = 'columns', inplace = True)
+  return cases_data
+
+def extract_unmodified_sequences_from_first_case_old_ver (cases_data) :
   sequence_data = cases_data . iloc [ : , : -1 ]
   nb_sequences = len (sequence_data)
   sequences = nb_sequences * [ None, ]
@@ -92,6 +81,18 @@ def extract_unmodified_sequences_from_first_case (cases_data) :
     first_nonzero = (sequences [sequence_index] != 0) . argmax ()
     sequences [sequence_index] = sequences [sequence_index] [ first_nonzero : ] . astype (float)
     sequence_index += 1
+  return sequences
+
+def extract_unmodified_sequences_from_first_case (cases_data) :
+  country_list = list (cases_data . Country . unique ())
+  nb_sequences = len (country_list)
+  sequences = nb_sequences * [ None, ]
+  for country_index, country in enumerate (country_list) :
+    country_items = cases_data [cases_data . Country == country] [ [ 'Date', 'Confirmed' ] ] . sort_values (by = 'Date')
+    sequence = country_items ['Confirmed'] . values . astype (int)
+    # remove the zeros at the beginning
+    first_non_zero = (sequence != 0) . argmax ()
+    sequences [country_index] = sequence [ first_non_zero : ] . astype (float)
   return sequences
 
 
@@ -151,6 +152,7 @@ def process_args () :
   global nb_epochs, random_seed, nb_hidden_features
   global predictions_len, batch_size, past_len
   global dropout_rate, test_data_size, max_ratio_value
+  global regularizer_type, regularizer_amplitude
   parser = argparse . ArgumentParser ()
   parser . add_argument ('--nb_epochs', type = int, default = nb_epochs)
   parser . add_argument ('--random_seed', type = int, default = random_seed)
@@ -161,6 +163,8 @@ def process_args () :
   parser . add_argument ('--dropout_rate', type = float, default = dropout_rate)
   parser . add_argument ('--test_data_size', type = float, default = test_data_size)
   parser . add_argument ('--max_ratio_value', type = float, default = max_ratio_value)
+  parser . add_argument ('--regularizer_type', type = str, default = regularizer_type)
+  parser . add_argument ('--regularizer_amplitude', type = float, default = regularizer_amplitude)
   #parser . add_argument ('--loss', type = int, default = )
   #parser . add_argument ('--optimizer', type = int, default = )
   args = parser . parse_args ()
@@ -173,6 +177,13 @@ def process_args () :
   dropout_rate = args . dropout_rate
   test_data_size = args . test_data_size
   max_ratio_value = args . max_ratio_value
+  regularizer_type = args . regularizer_type
+  if (regularizer_type not in [ 'L1', 'L2' ] ):
+    if (regularizer_type == 'None') :
+      retularizer_type = None
+    else :
+      raise Exception ('regularizer_type must be either L1, L2 or None')
+  regularizer_amplitude = args . regularizer_amplitude
   # = args . 
   # = args . 
 

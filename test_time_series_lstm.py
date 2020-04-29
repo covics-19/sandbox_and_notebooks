@@ -7,18 +7,33 @@ import numpy
 import pandas
 
 
+def create_bit_of_fake_data () :
+  data_dict = {}
+  data_dict ['Country'] = [ 'base', 'base','base',
+                            'shorter', 'shorter',
+                            'longer', 'longer', 'longer', 'longer', 'longer']
+  data_dict ['Date'] = [ '2020-01-02T00:00:00Z', '2020-01-03T00:00:00Z', '2020-01-04T00:00:00Z',
+                         '2020-01-03T00:00:00Z', '2020-01-04T00:00:00Z',
+                         '2020-01-01T00:00:00Z', '2020-01-02T00:00:00Z', '2020-01-03T00:00:00Z', '2020-01-04T00:00:00Z', '2020-01-05T00:00:00Z', ]
+  data_dict ['Confirmed'] = [ 1, 2, 3,
+                              0, 10,
+                              0, 0, 10, 0, 1000 ]
+  data_dict ['Deaths'] = [ 0, 0, 0,
+                           0, 0,
+                           0, 0, 0, 0, 0 ]
+  data_dict ['Recovered'] = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+  return pandas . DataFrame (data_dict)
+
 
 class TestModelLstm (unittest . TestCase) :
 
   def test_extract_unmodified_sequences_from_first_case (self) :
-    data = numpy . array ([[0.,1.,2.,6.,-1.],[3.,4.,5.,7.,-2.],[0.,0.,0.,8.,-3.],[0.,9.,0.,10.,-4.]])
-    cases_data = pandas . DataFrame (data = data, columns = [ f'col_{i}' for i in range (data . shape [1]) ])
+    cases_data = create_bit_of_fake_data ()
     seq = extract_unmodified_sequences_from_first_case (cases_data)
-    self . assertEqual (len (seq), 4)
-    self . assertTrue (numpy . allclose (seq [0], numpy.array([1.,2.,6.])))
-    self . assertTrue (numpy . allclose (seq [1], numpy.array([3.,4.,5.,7.])))
-    self . assertTrue (numpy . allclose (seq [2], numpy.array([8.,])))
-    self . assertTrue (numpy . allclose (seq [3], numpy.array([9.,0.,10.])))
+    self . assertEqual (len (seq), 3)
+    self . assertTrue (numpy . allclose (seq [0], numpy.array([ 1., 2., 3. ])))
+    self . assertTrue (numpy . allclose (seq [1], numpy.array([ 10., ])))
+    self . assertTrue (numpy . allclose (seq [2], numpy.array([ 10., 0., 1000.])))
 
   def test_compute_sequence_variations (self) :
     sequences = [
